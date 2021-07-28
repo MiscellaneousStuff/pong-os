@@ -54,6 +54,9 @@ PRIMARY equ WHITE
 ; MAIN CODE
 ; ==============================================================================
 
+; ------------------------------------------------------------------------------
+; Initialize graphics
+; IN = Nothing | OUT = Nothing
 main_init:
     ; safely setup segment and stack registers
     cli
@@ -70,12 +73,36 @@ main_init:
     int 0x10
 
     ; plot a rect
-    mov bh, 5 ; x
+    mov bh, 20 ; x
     mov bl, 5 ; y
     mov dh, 5  ; width (originally 100)
     mov dl, 100  ; height (originally 100)
     call rect  ; rect(x, y, width, height)
 
+main_loop:
+    ; Handle user input first
+    call main_input
+
+    ; Render afterwards
+    call main_render
+    jmp main_loop
+
+; ------------------------------------------------------------------------------
+; Handle user input
+; IN = Nothing | OUT = Nothing
+main_input:
+    xor ax, ax
+    int 0x16
+
+; ------------------------------------------------------------------------------
+; Render game objects and UI
+; IN = Nothing | OUT = Nothing
+main_render:
+    ret
+
+; ------------------------------------------------------------------------------
+; Game termination
+; IN = Nothing | OUT = Nothing
 main_done:
     ; disable interrupts and loop (safely stops operation of the CPU)
     cli
@@ -107,21 +134,31 @@ rect:
 
     ; calculate start offset (y * WIDTH + x)
     push dx
+    push bx
+
+    ; AL := WIDTH
     xor ax, ax
-    mov al, WIDTH ; AX := width
+    mov ax, WIDTH
+
+    ; CL := y
     xor cx, cx
     mov cl, bl
-    mul cx ; AX = width * y
-    mov cl, bh
-    add ax, bx ; AX = (width * y) + x
-    mov di, ax
-    pop dx
 
-    ; print value in dh 
-    ; mov ah, 0x0E
-    ; mov al, dh
-    ; add al, 0x30
-    ; int 0x10
+    ; AL = AL(WIDTH) * CL(y)
+    mul cx
+
+    ; BL := x
+    mov bl, bh
+    xor bh, bh
+
+    ; AL = AL(WIDTH * y) + BL(x)
+    add ax, bx ; AX = (width * y) + x
+
+    ; DI = (WIDTH * y) + x
+    mov di, ax
+
+    pop bx
+    pop dx
 
 .row:
     xor cx, cx
@@ -139,6 +176,39 @@ rect:
 .done:
     popa
     ret
+
+; ==============================================================================
+; GAME VARIABLES
+; ==============================================================================
+
+; ------------------------------------------------------------------------------
+; PLAYER 1 VARIABLES
+; ------------------------------------------------------------------------------
+
+player_1_y     db 0
+player_1_score db 0
+
+; ------------------------------------------------------------------------------
+; PLAYER 2 VARIABLES
+; ------------------------------------------------------------------------------
+
+player_2_y     db 0
+player_2_score db 0
+
+; ------------------------------------------------------------------------------
+; BALL VARIABLES
+; ------------------------------------------------------------------------------
+
+ball_x db 0
+ball_y db 0
+ball_velocity_x db 0
+ball_velocity_y db 0
+
+; ------------------------------------------------------------------------------
+; GAME STATE VARIABLES
+; ------------------------------------------------------------------------------
+
+game_state db 0 ; 0 = Start screen, 1 = Ready (Press key to start), 2 = Playing
 
 ; ==============================================================================
 ; BOOTSECTOR PADDING AND BOOT DEVICE SIGNATURE (WON'T BOOT OTHERWISE!)
