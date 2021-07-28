@@ -69,17 +69,17 @@ main_init:
     int 0x10
 
     ; plot a rect
-    mov bh, 10
-    mov bl, 10
-    mov dh, 100
-    mov dl, 100
-    call rect
+    mov bh, 10  ; x
+    mov bl, 10  ; y
+    mov dh, 100 ; width
+    mov dl, 100 ; height
+    call rect   ; rect(x, y, width, height)
 
 main_done:
-    ; disable interrupts and loop (safely stops operation of a PC)
+    ; disable interrupts and loop (safely stops operation of the CPU)
     cli
     hlt
-    jmp main_done ; Shouldn't be needed, but you never know
+    jmp $ ; Shouldn't be needed, but you never know
 
 ; ==============================================================================
 ; UTILITY FUNCTIONS
@@ -92,15 +92,37 @@ main_done:
 rect:
     pusha
 
-    ; calculate start offset (y * width + x)
-    xor di, di
+    ; calc per row width offset
+    mov al, dl ; save HEIGHT in AH
+    xor dl, dl ; clear DL so (SI - DX) := (WIDTH - rect_width) only
+    xchg dl, dh ; so DX = (0x00 << 8) + WIDTH
+    mov si, WIDTH
+    sub si, dx ; SI = (WIDTH - rect_width)
+    mov dl, al ; restore HEIGHT from AH ; NOTE: 
 
-.row:
-    ; plot WIDTH number of pixels in a row
+    ; calculate start offset (y * width + x)
+    xor ax, ax
+    mov al, dh ; AX := width
     xor cx, cx
-    mov cl, dh ; CX := width
-    mov al, PRIMARY ; color
-    repe stosb      ; es(0xA000):di(y*width+x) := color
+    mov cl, bl
+    mul cx ; AX = width * y
+    mov cl, bh
+    add ax, bx ; AX = (width * y) + x
+    mov di, ax
+
+    mov al, PRIMARY
+    stosb
+    
+;.row:
+;   ; plot WIDTH number of pixels in a row
+;   xor cx, cx
+;   mov cl, dh ; CX := width
+;   mov al, PRIMARY ; color
+;   repe stosb      ; es(0xA000):di(y*width+x) := color
+;   dec dl
+;   or dl, dl
+;   jz .done
+;   jmp .row
 
 .done:
     popa
