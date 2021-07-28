@@ -9,6 +9,8 @@ run: pong.img
 pong.img: pong.asm
 	$(AS) $(ASFLAGS) -o pong.img pong.asm
 
+# NOTE: This does include null bytes used by code/data as well
+# roughly calculates remaining bytes (out of 510)
 space: pong.img
 	xxd -b pong.img | grep -o "00000000" | wc -l
 

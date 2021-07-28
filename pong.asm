@@ -41,14 +41,22 @@ BITS 16 ; 16-bit real mode code
 ; CONSTANTS
 ; ==============================================================================
 
-WIDTH   equ 320
-HEIGHT  equ 200
-BPP     equ 8
+; Mode 13h screen settings (320x200x8bpp)
+SCREEN_WIDTH      equ 320
+SCREEN_HEIGHT     equ 200
 
-WHITE   equ 0x0F
-BLACK   equ 0x00
+; Colors   
+BLACK      equ 0x00
+GREEN      equ 0x02
+CYAN       equ 0x03
+LIGHT_GRAY equ 0x07
+DARK_GRAY  equ 0x08
+YELLOW     equ 0x0E
+WHITE      equ 0x0F
 
-PRIMARY equ WHITE
+; Theme
+PRIMARY    equ WHITE ; paddle, ball, fonts
+BACKGROUND equ BLACK 
 
 ; ==============================================================================
 ; MAIN CODE
@@ -72,19 +80,21 @@ main_init:
     mov ax, 0x13
     int 0x10
 
-    ; plot a rect
-    mov bh, 20 ; x
-    mov bl, 5 ; y
-    mov dh, 5  ; width (originally 100)
-    mov dl, 100  ; height (originally 100)
-    call rect  ; rect(x, y, width, height)
+    ; render background
+    mov al, BACKGROUND
+    xor di, di
+    mov cx, SCREEN_WIDTH * SCREEN_HEIGHT
+    repe stosb
+
 
 main_loop:
     ; Handle user input first
-    call main_input
+    ; call main_input
 
     ; Render afterwards
     call main_render
+
+    ; Infinite loop
     jmp main_loop
 
 ; ------------------------------------------------------------------------------
@@ -93,11 +103,72 @@ main_loop:
 main_input:
     xor ax, ax
     int 0x16
+    ret
 
 ; ------------------------------------------------------------------------------
 ; Render game objects and UI
 ; IN = Nothing | OUT = Nothing
 main_render:
+    ; Plot player 1 paddle
+    mov ax, 4                   ; x
+    mov bx, [player_1_y]        ; y
+    mov cx, 4                   ; width (originally 100)
+    mov dx, 100                 ; height (originally 100)
+    call rect                   ; rect(x, y, width, height)
+
+    ; Plot player 2 paddle
+    mov ax, SCREEN_WIDTH - 8    ; x
+    mov bx, [player_2_y]        ; y
+    mov cx, 4                   ; width (originally 100)
+    mov dx, 100                 ; height (originally 100)
+    call rect                   ; rect(x, y, width, height)
+
+    ; Plot mid line
+    call main_render_line
+
+    ; Plot ball
+    mov ax, [ball_x]
+    mov bx, [ball_y]
+    mov cx, 4
+    mov dx, 4
+    call rect
+
+.done:
+    ret
+
+; ------------------------------------------------------------------------------
+; Render middle split
+; IN = Nothing | OUT = Nothing
+main_render_line:
+    pusha
+    mov di, 24 ; 200 height / 4 dot height = 25 dots - 1 offset = 24 dots
+
+    mov ax, (SCREEN_WIDTH/2)-2 ; x
+    mov bx, 4                  ; y
+    mov cx, 4                  ; width (originally 100)
+    mov dx, 4                  ; height (originally 100)
+
+.dot:
+    call rect
+
+    add bx, 8
+
+    dec di
+    jz .done
+    jmp .dot
+
+.done:
+    popa
+    ret
+
+; ------------------------------------------------------------------------------
+; Render player score to screen
+; IN = Nothing | OUT = Nothing
+main_render_score:
+    pusha
+
+.done:
+    popa
     ret
 
 ; ------------------------------------------------------------------------------
@@ -116,60 +187,40 @@ main_done:
 ; ------------------------------------------------------------------------------
 ; NOTE: 0xA000 is memory segment for graphics segment
 ; Plots a filled rectangle to the screen
-; IN = BH(X) + BL(Y) + DH(WIDTH) + DL(HEIGHT) | OUT = Nothing
+; IN = AX(X) + BX(Y) + CX(WIDTH) + DX(HEIGHT) | OUT = Nothing
+; SI = PER ROW OFFSET, DI = CUR ROW OFFSET
 rect:
     pusha
 
-    ; calc per row width offset
-    mov al, dl ; save HEIGHT in AL
-    mov ah, dh ; save WIDTH in AH
+    ; calc per row offset
+    mov si, SCREEN_WIDTH
+    sub si, cx
 
-    xor dl, dl ; clear DL so (SI - DX) := (WIDTH - rect_width) only
-    xchg dl, dh ; so DX = (0x00 << 8) + WIDTH
-    mov si, WIDTH
-    sub si, dx ; SI = (WIDTH - rect_width)
-    
-    mov dh, ah ; restore WIDTH from DL
-    mov dl, al ; restore HEIGHT from AL
-
-    ; calculate start offset (y * WIDTH + x)
+    ; calculate start offset (y * SCREEN_WIDTH + x)
     push dx
-    push bx
-
-    ; AL := WIDTH
+    push ax
     xor ax, ax
-    mov ax, WIDTH
-
-    ; CL := y
-    xor cx, cx
-    mov cl, bl
-
-    ; AL = AL(WIDTH) * CL(y)
-    mul cx
-
-    ; BL := x
-    mov bl, bh
-    xor bh, bh
-
-    ; AL = AL(WIDTH * y) + BL(x)
-    add ax, bx ; AX = (width * y) + x
-
-    ; DI = (WIDTH * y) + x
-    mov di, ax
-
+    mov ax, SCREEN_WIDTH
+    mul bx
     pop bx
+    add ax, bx
+    mov di, ax
     pop dx
 
-.row:
-    xor cx, cx
-    mov cl, dh ; CX = width
+    ; save width into bx
+    mov bx, cx
 
+.row:
+    ; restore width each time
+    mov cx, bx
+
+    ; plot row
     mov al, PRIMARY
     repe stosb
 
     ; we're done if we've plotted all rows
     add di, si ; DI += row_offset
-    dec dl
+    dec dx
     jz .done
     jmp .row
 
@@ -185,14 +236,14 @@ rect:
 ; PLAYER 1 VARIABLES
 ; ------------------------------------------------------------------------------
 
-player_1_y     db 0
+player_1_y     db 5
 player_1_score db 0
 
 ; ------------------------------------------------------------------------------
 ; PLAYER 2 VARIABLES
 ; ------------------------------------------------------------------------------
 
-player_2_y     db 0
+player_2_y     db 5
 player_2_score db 0
 
 ; ------------------------------------------------------------------------------
