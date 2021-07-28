@@ -71,8 +71,8 @@ main_init:
     ; plot a rect
     mov bh, 10  ; x
     mov bl, 10  ; y
-    mov dh, 100 ; width
-    mov dl, 100 ; height
+    mov dh, 1 ; width (originally 100)
+    mov dl, 1 ; height (originally 100)
     call rect   ; rect(x, y, width, height)
 
 main_done:
@@ -110,9 +110,14 @@ rect:
     add ax, bx ; AX = (width * y) + x
     mov di, ax
 
+    ; putpixel(row_1)
     mov al, PRIMARY
     stosb
-    
+
+    ; putpixel(row_2)
+    add di, si
+    stosb
+
 ;.row:
 ;   ; plot WIDTH number of pixels in a row
 ;   xor cx, cx
