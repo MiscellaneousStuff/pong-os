@@ -29,6 +29,7 @@
 ; ==============================================================================
 
 
+
 ; ==============================================================================
 ; PREPROCESSOR DIRECTIVES
 ; ==============================================================================
@@ -69,11 +70,11 @@ main_init:
     int 0x10
 
     ; plot a rect
-    mov bh, 10  ; x
-    mov bl, 10  ; y
-    mov dh, 1 ; width (originally 100)
-    mov dl, 1 ; height (originally 100)
-    call rect   ; rect(x, y, width, height)
+    mov bh, 5 ; x
+    mov bl, 5 ; y
+    mov dh, 5  ; width (originally 100)
+    mov dl, 100  ; height (originally 100)
+    call rect  ; rect(x, y, width, height)
 
 main_done:
     ; disable interrupts and loop (safely stops operation of the CPU)
@@ -93,41 +94,47 @@ rect:
     pusha
 
     ; calc per row width offset
-    mov al, dl ; save HEIGHT in AH
+    mov al, dl ; save HEIGHT in AL
+    mov ah, dh ; save WIDTH in AH
+
     xor dl, dl ; clear DL so (SI - DX) := (WIDTH - rect_width) only
     xchg dl, dh ; so DX = (0x00 << 8) + WIDTH
     mov si, WIDTH
     sub si, dx ; SI = (WIDTH - rect_width)
-    mov dl, al ; restore HEIGHT from AH ; NOTE: 
+    
+    mov dh, ah ; restore WIDTH from DL
+    mov dl, al ; restore HEIGHT from AL
 
-    ; calculate start offset (y * width + x)
+    ; calculate start offset (y * WIDTH + x)
+    push dx
     xor ax, ax
-    mov al, dh ; AX := width
+    mov al, WIDTH ; AX := width
     xor cx, cx
     mov cl, bl
     mul cx ; AX = width * y
     mov cl, bh
     add ax, bx ; AX = (width * y) + x
     mov di, ax
+    pop dx
 
-    ; putpixel(row_1)
+    ; print value in dh 
+    ; mov ah, 0x0E
+    ; mov al, dh
+    ; add al, 0x30
+    ; int 0x10
+
+.row:
+    xor cx, cx
+    mov cl, dh ; CX = width
+
     mov al, PRIMARY
-    stosb
+    repe stosb
 
-    ; putpixel(row_2)
-    add di, si
-    stosb
-
-;.row:
-;   ; plot WIDTH number of pixels in a row
-;   xor cx, cx
-;   mov cl, dh ; CX := width
-;   mov al, PRIMARY ; color
-;   repe stosb      ; es(0xA000):di(y*width+x) := color
-;   dec dl
-;   or dl, dl
-;   jz .done
-;   jmp .row
+    ; we're done if we've plotted all rows
+    add di, si ; DI += row_offset
+    dec dl
+    jz .done
+    jmp .row
 
 .done:
     popa
