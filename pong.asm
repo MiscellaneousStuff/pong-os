@@ -44,6 +44,8 @@ BITS 16 ; 16-bit real mode code
 ; Mode 13h screen settings (320x200x8bpp)
 SCREEN_WIDTH      equ 320
 SCREEN_HEIGHT     equ 200
+MID_SCREEN_X      equ SCREEN_WIDTH / 2
+MID_SCREEN_y      equ SCREEN_HEIGHT / 2
 
 ; Colors   
 BLACK      equ 0x00
@@ -126,6 +128,19 @@ main_render:
     ; Plot mid line
     call main_render_line
 
+    ; Plot scores
+    mov ax, MID_SCREEN_X - \
+    (2 + 6*4)                ; x
+    mov bx, 4     ; y
+    mov cx, [player_1_score] ; player 2 score
+    call main_render_score   ; render_score(x, y, score)
+
+    mov ax, MID_SCREEN_X + \
+    (2 + 2*4)                ; x
+    mov bx, 4     ; y
+    mov cx, [player_2_score] ; player 2 score
+    call main_render_score   ; render_score(x, y, score)
+
     ; Plot ball
     mov ax, [ball_x]
     mov bx, [ball_y]
@@ -137,35 +152,47 @@ main_render:
     ret
 
 ; ------------------------------------------------------------------------------
+; Render a players score
+; IN = AX(X) + BX(Y) + CX(Score) | OUT = Nothing
+main_render_score:
+    pusha
+
+    mov cx, 4
+    mov dx, 4
+    call rect
+
+    add ax, 4*3
+    call rect
+
+    add bx, 7*3
+    call rect
+
+    sub ax, 4*3
+    call rect
+    
+.done:
+    popa
+    ret
+
+; ------------------------------------------------------------------------------
 ; Render middle split
 ; IN = Nothing | OUT = Nothing
 main_render_line:
     pusha
     mov di, 24 ; 200 height / 4 dot height = 25 dots - 1 offset = 24 dots
 
-    mov ax, (SCREEN_WIDTH/2)-2 ; x
-    mov bx, 4                  ; y
-    mov cx, 4                  ; width (originally 100)
-    mov dx, 4                  ; height (originally 100)
+    mov ax, MID_SCREEN_X - 2 ; x
+    mov bx, 4                ; y
+    mov cx, 4                ; width (originally 100)
+    mov dx, 4                ; height (originally 100)
 
 .dot:
     call rect
 
     add bx, 8
-
     dec di
     jz .done
     jmp .dot
-
-.done:
-    popa
-    ret
-
-; ------------------------------------------------------------------------------
-; Render player score to screen
-; IN = Nothing | OUT = Nothing
-main_render_score:
-    pusha
 
 .done:
     popa
@@ -229,8 +256,62 @@ rect:
     ret
 
 ; ==============================================================================
-; GAME VARIABLES
+; GAME VARIABLES AND DATA
 ; ==============================================================================
+
+; ------------------------------------------------------------------------------
+; NUMBER DATA
+; ------------------------------------------------------------------------------
+
+digit_0_1:
+db 11110001b
+db 10010001b
+db 10010001b
+db 10010001b
+db 10010001b
+db 10010001b
+db 10010001b
+db 11110001b
+
+digit_2_3:
+db 11111111b
+db 00010001b
+db 00010001b
+db 11111111b
+db 10000001b
+db 10000001b
+db 10000001b
+db 11111111b
+
+digit_4_5:
+db 10011111b
+db 10011000b
+db 10011000b
+db 11111111b
+db 00010001b
+db 00010001b
+db 00010001b
+db 00011111b
+
+digit_6_7:
+db 10001111b
+db 10000001b
+db 10000001b
+db 10000001b
+db 11110001b
+db 10010001b
+db 10010001b
+db 11110001b
+
+digit_8_9:
+db 11111111b
+db 10011001b
+db 10011001b
+db 11111111b
+db 10010001b
+db 10010001b
+db 10010001b
+db 11110001b
 
 ; ------------------------------------------------------------------------------
 ; PLAYER 1 VARIABLES
