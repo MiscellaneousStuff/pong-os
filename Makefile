@@ -9,7 +9,10 @@ run: pong.img
 pong.img: pong.asm
 	$(AS) $(ASFLAGS) -o pong.img pong.asm
 
+space: pong.img
+	xxd -b pong.img | grep -o "00000000" | wc -l
+
 clean:
 	rm *.o pong.img
 
-.PHONY: clean pong.img
+.PHONY: clean pong.img run all space

@@ -1,20 +1,53 @@
 ; ==============================================================================
+; LICENSE AND SUMMARY
+; ==============================================================================
+;
+; The MIT License (MIT)
+; 
+; Copyright (c) 2021 MiscellaneousStuff
+; 
+; Permission is hereby granted, free of charge, to any person obtaining a copy
+; of this software and associated documentation files (the "Software"), to deal
+; in the Software without restriction, including without limitation the rights
+; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+; copies of the Software, and to permit persons to whom the Software is
+; furnished to do so, subject to the following conditions:
+; 
+; The above copyright notice and this permission notice shall be included in
+; all copies or substantial portions of the Software.
+; 
+; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+; THE SOFTWARE.
+;
+; ------------------------------------------------------------------------------
+; Pong implemented in 512-byte bootsector, 16-bit, real-mode
+; ==============================================================================
+
+
+; ==============================================================================
 ; PREPROCESSOR DIRECTIVES
 ; ==============================================================================
 
-ORG 0x7C00 ; originate offsets from segmente 0x7C00 (boot segment) 
+ORG 0x7C00 ; originate offsets from segmente 0x7C00 (boot segment)
 BITS 16 ; 16-bit real mode code
 
 ; ==============================================================================
 ; CONSTANTS
 ; ==============================================================================
 
-WIDTH  equ 320
-HEIGHT equ 200
-BPP    equ 8
+WIDTH   equ 320
+HEIGHT  equ 200
+BPP     equ 8
 
-WHITE  equ 0x0F
-BLACK  equ 0x00
+WHITE   equ 0x0F
+BLACK   equ 0x00
+
+PRIMARY equ WHITE
 
 ; ==============================================================================
 ; MAIN CODE
@@ -23,8 +56,9 @@ BLACK  equ 0x00
 main_init:
     ; safely setup segment and stack registers
     cli
-    xor ax, ax
+    mov ax, 0xA000
     mov es, ax
+    xor ax, ax
     mov ds, ax
     mov ss, ax
     mov sp, main_init
@@ -35,8 +69,8 @@ main_init:
     int 0x10
 
     ; plot a rect
-    mov ch, 10
-    mov cl, 10
+    mov bh, 10
+    mov bl, 10
     mov dh, 100
     mov dl, 100
     call rect
@@ -54,15 +88,19 @@ main_done:
 ; ------------------------------------------------------------------------------
 ; NOTE: 0xA000 is memory segment for graphics segment
 ; Plots a filled rectangle to the screen
-; IN = CH(X) + CL(Y) + DH(WIDTH) + DL(HEIGHT) | OUT = Nothing
+; IN = BH(X) + BL(Y) + DH(WIDTH) + DL(HEIGHT) | OUT = Nothing
 rect:
     pusha
 
-    mov ax, 0xA000
-    mov es, ax
-    xor bx, bx
-    mov al, WHITE
-    stosb
+    ; calculate start offset (y * width + x)
+    xor di, di
+
+.row:
+    ; plot WIDTH number of pixels in a row
+    xor cx, cx
+    mov cl, dh ; CX := width
+    mov al, PRIMARY ; color
+    repe stosb      ; es(0xA000):di(y*width+x) := color
 
 .done:
     popa
